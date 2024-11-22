@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data Import for Infra Dept</title>
+    <link rel="icon" href="assets/favicon.ico" type="image/x-icon" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      .container {
+        width: 500px;
+        padding: 20px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      .logo {
+        width: 150px;
+        margin-bottom: auto;
+      }
+      h1 {
+        text-align: center;
+      }
+      .upload-container {
+        width: 100%;
+        padding: 40px;
+        margin: 20px 0;
+        background-color: #f8f9fa;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: border 0.2s ease-in-out;
+        box-sizing: border-box;
+      }
+      .upload-container:hover {
+        border-color: #5e1914;
+      }
+      .upload-icon {
+        font-size: 50px;
+      }
+      .upload-text {
+        font-size: 22px;
+        color: #333;
+        margin-top: 20px;
+        font-weight: bold;
+      }
+      .upload-subtext {
+        font-size: 14px;
+        color: #888;
+        margin-top: 7px;
+      }
+      #fileInput {
+        display: none;
+      }
+      .file-name {
+        margin-top: 15px;
+        margin-bottom: 20px;
+        font-size: 16px;
+        color: #333;
+        font-weight: bold;
+      }
+      .button {
+        width: 100%;
+        padding: 10px;
+        background-color: #5e1914;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 20px;
+      }
+      .button:hover {
+        background-color: #420d09;
+      }
+      .button:disabled {
+        background-color: #d3d3d3;
+        cursor: not-allowed;
+      }
+      .countdown {
+        font-size: 18px;
+        color: red;
+        text-align: center;
+        margin-top: 10px;
+      }
+      #progressContainer {
+        display: none;
+        margin-top: 20px;
+        width: 100%;
+        height: 10px;
+        background-color: #ddd;
+        border-radius: 5px;
+        text-align: center;
+        margin-bottom: 25px;
+      }
+      #progressBar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #5e1914, #ff5733);
+        border-radius: 5px;
+        transition: width 0.3s ease-in-out;
+        padding-bottom: 5px;
+      }
+      #progressPercent {
+        text-align: center;
+        font-weight: bold;
+        margin-top: 5px;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <img src="assets/new_vbd.png" alt="Logo" class="logo" />
+      <h1>Data Import GUI</h1>
+      <!-- Drag-and-Drop and Clickable Upload Area -->
+      <div
+        class="upload-container"
+        onclick="document.getElementById('fileInput').click()"
+        ondrop="handleFileDrop(event)"
+        ondragover="event.preventDefault()"
+      >
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">Select a file to import</div>
+        <div class="upload-subtext">or drag and drop it here</div>
+      </div>
+
+      <!-- Hidden File Input -->
+      <input
+        type="file"
+        id="fileInput"
+        accept=".csv, .xlsx"
+        onchange="handleFileSelect(event)"
+      />
+
+      <!-- Display File Name -->
+      <div id="fileName" class="file-name"></div>
+
+      <!-- Button to trigger the upload -->
+      <button class="button" id="uploadButton" onclick="uploadFile(event)">
+        Upload Data
+      </button>
+
+      <!-- Countdown Display -->
+      <div id="countdown" class="countdown"></div>
+
+      <!-- Progress bar below the button -->
+      <div id="progressContainer">
+        <div id="progressBar"></div>
+        <div id="progressPercent">0%</div>
+      </div>
+    </div>
+
+    <div
+      id="errorMessage"
+      class="error-message"
+      style="color: red; display: none"
+    ></div>
+
+    <script>
+
+      window.onload = function () {
+        document.addEventListener(
+          "contextmenu",
+          function (e) {
+            e.preventDefault();
+          },
+          false
+        );
+        document.addEventListener(
+          "keydown",
+          function (e) {
+            //document.onkeydown = function(e) {
+            // "I" key
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 73) {
+              disabledEvent(e);
+            }
+            // "J" key
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 74) {
+              disabledEvent(e);
+            }
+            // "S" key + macOS
+            if (
+              e.keyCode == 83 &&
+              (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)
+            ) {
+              disabledEvent(e);
+            }
+            // "U" key
+            if (e.ctrlKey && e.keyCode == 85) {
+              disabledEvent(e);
+            }
+            // "F12" key
+            if (event.keyCode == 123) {
+              disabledEvent(e);
+            }
+          },
+          false
+        );
+        function disabledEvent(e) {
+          if (e.stopPropagation) {
+            e.stopPropagation();
+          } else if (window.event) {
+            window.event.cancelBubble = true;
+          }
+          e.preventDefault();
+          return false;
+        }
+      };
+
+      const countdownDuration = 8; // Countdown duration in seconds
+      let isUploading = false;
+      let isWaitTime = false;
+      let countdownInterval;
+
+      const countdownDisplay = document.getElementById("countdown");
+      const uploadButton = document.getElementById("uploadButton");
+      const fileInput = document.getElementById("fileInput");
+      const fileNameDisplay = document.getElementById("fileName");
+
+      function initializeCountdown() {
+        const savedState = JSON.parse(localStorage.getItem("uploadState"));
+        const currentTimestamp = Date.now();
+
+        if (savedState && savedState.startTime) {
+          const elapsedTime = Math.floor(
+            (currentTimestamp - savedState.startTime) / 1000
+          );
+          const remainingTime = countdownDuration - elapsedTime;
+
+          if (remainingTime > 0) {
+            isWaitTime = true;
+            startCountdown(remainingTime);
+          } else {
+            clearSavedState();
+          }
+        }
+      }
+
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+          fileNameDisplay.textContent = `Selected file: ${file.name}`;
+        } else {
+          fileNameDisplay.textContent = "No file selected";
+        }
+      }
+
+      function handleFileDrop(event) {
+        event.preventDefault();
+        const file = event.dataTransfer.files[0];
+        if (file) {
+          fileInput.files = event.dataTransfer.files;
+          fileNameDisplay.textContent = `Selected file: ${file.name}`;
+        } else {
+          fileNameDisplay.textContent = "No file selected";
+        }
+      }
+
+      function uploadFile(event) {
+        event.preventDefault();
+
+        if (isWaitTime) {
+          alert(
+            "Please wait for the countdown to finish before uploading again."
+          );
+          return;
+        }
+
+        const file = fileInput.files[0];
+        if (!file) {
+          alert("No file selected.");
+          return;
+        }
+
+        const allowedFileTypes = [
+          "text/csv",
+          "application/json",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // JSON or plain text
+        ];
+
+        if (!allowedFileTypes.includes(file.type)) {
+          alert(
+            "Unsupported file type. Please select XLSX, CSV, JSON, or TEXT file."
+          );
+          return;
+        }
+
+        isUploading = true;
+        updateButtonAndFileInputState();
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "https://vbdupload.duckdns.org/upload", true);
+
+        // Show progress bar
+        const progressContainer = document.getElementById("progressContainer");
+        const progressBar = document.getElementById("progressBar");
+        const progressPercent = document.getElementById("progressPercent");
+        progressContainer.style.display = "block";
+
+        // Update progress
+        xhr.upload.onprogress = function (event) {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round(
+              (event.loaded / event.total) * 100
+            );
+            progressBar.style.width = `${percentComplete}%`;
+            progressPercent.textContent = `${percentComplete}%`;
+          }
+        };
+
+        // Handle completion
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const response = JSON.parse(xhr.responseText);
+            alert(response.message);
+            startWaitTime();
+          } else {
+            alert("Error uploading file. Please try again.");
+          }
+
+          // Hide progress bar once finished
+          setTimeout(() => {
+            progressContainer.style.display = "none";
+            progressBar.style.width = "0%";
+            progressPercent.textContent = "0%";
+          }, 500);
+
+          // Clear file name
+          fileNameDisplay.textContent = "";
+
+          isUploading = false;
+          updateButtonAndFileInputState();
+        };
+
+        // Handle errors
+        xhr.onerror = function () {
+          alert("Error uploading file. Please try again.");
+
+          // Hide progress bar and reset
+          setTimeout(() => {
+            progressContainer.style.display = "none";
+            progressBar.style.width = "0%";
+            progressPercent.textContent = "0%";
+          }, 500);
+
+          // Clear file name
+          fileNameDisplay.textContent = "";
+
+          isUploading = false;
+          updateButtonAndFileInputState();
+        };
+
+        xhr.send(formData);
+      }
+
+      function startWaitTime() {
+        isWaitTime = true;
+        const startTime = Date.now();
+        localStorage.setItem("uploadState", JSON.stringify({ startTime }));
+        startCountdown(countdownDuration);
+      }
+
+      function startCountdown(remainingTime) {
+        updateButtonAndFileInputState();
+
+        countdownInterval = setInterval(() => {
+          remainingTime--;
+          countdownDisplay.innerText = `Please wait... ${remainingTime}s for next upload`;
+
+          if (remainingTime <= 0) {
+            clearInterval(countdownInterval);
+            countdownDisplay.innerText = "";
+            fileInput.value = ""; // Reset file input
+            isWaitTime = false;
+            isUploading = false;
+            clearSavedState();
+            updateButtonAndFileInputState();
+          }
+        }, 1000);
+      }
+
+      function updateButtonAndFileInputState() {
+        const disable = isWaitTime || isUploading;
+        uploadButton.disabled = disable;
+        fileInput.disabled = disable;
+        uploadButton.style.backgroundColor = disable ? "#d3d3d3" : "#5E1914";
+      }
+
+      function clearSavedState() {
+        localStorage.removeItem("uploadState");
+        updateButtonAndFileInputState();
+      }
+
+      initializeCountdown();
+    </script>
+  </body>
+</html>
